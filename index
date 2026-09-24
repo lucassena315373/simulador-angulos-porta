@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cartão-Resposta • Escola Estadual João Paulo II (V5.0)</title>
+
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script async src="https://docs.opencv.org/4.x/opencv.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+<style>
+:root{--blue:#002b66;--blue-light:#0b65ad;--red:#cc0000;--bg:#f3f6fa;--line:#c8d4df}
+.sync-box{border:1px solid #b9d6c2;background:#f5fbf6;border-radius:12px;padding:14px;margin-bottom:14px}.sync-box.offline{background:#fff8e8;border-color:#e4c56b}.sync-user{font-size:13px}.sync-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#888;margin-right:6px}.sync-dot.ok{background:#198754}.sync-dot.warn{background:#d39e00}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:#17202a}
+header{background:linear-gradient(120deg,var(--blue),var(--blue-light));color:#fff;padding:16px 22px}
+header h1{font-size:22px;margin:0}
+header small{opacity:.9}
+nav{display:flex;gap:8px;padding:10px;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:10;flex-wrap:wrap}
+nav button,.btn{border:0;border-radius:9px;padding:10px 14px;cursor:pointer;font-weight:700;background:#e8eef5;color:var(--blue)}
+nav button.active,.btn.primary{background:var(--blue-light);color:white}
+.btn.red{background:var(--red);color:white}.btn.green{background:#198754;color:white}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+main{max-width:1200px;margin:auto;padding:18px}
+.panel{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px;box-shadow:0 2px 8px #00000008}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.field label{display:block;font-size:13px;font-weight:700;margin-bottom:6px}
+.field input,.field select,.field textarea{width:100%;padding:10px;border:1px solid #b8c7d5;border-radius:8px;font-size:15px}
+.field textarea{min-height:110px;resize:vertical}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.hint{font-size:13px;color:#5c6874}.status{padding:10px;border-radius:8px;background:#eef7ff;margin-top:10px}
+.subject-row{display:grid;grid-template-columns:2fr 1fr 1fr 40px;gap:8px;align-items:center;margin-bottom:8px}
+.keygrid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin-top:12px}
+.keyitem{display:grid;grid-template-columns:42px 1fr;align-items:center;gap:5px}
+.keyitem b{font-size:13px}.keyitem select{padding:7px}
+
+/* CARTÃO A4 */
+.card-wrap{display:flex;justify-content:center;background:#777;padding:18px;overflow:auto}
+.answer-card{background:#fff;width:210mm;height:297mm;padding:4.2mm 3.6mm 3.2mm;position:relative;box-shadow:0 0 8px #0004;color:#000;font-family:Arial,sans-serif;border:1.3px solid #163d72;border-radius:2mm}
+.card-header{display:grid;grid-template-columns:43mm 1fr 43mm;align-items:center;text-align:center;height:40mm}
+.logo-box{display:flex;justify-content:center;align-items:center;height:38mm}
+.logo-box img{max-width:38mm;max-height:38mm;object-fit:contain}
+.card-title-main h1{font-size:25px;font-weight:900;color:var(--blue);margin:0;letter-spacing:.2px}
+.card-title-main h2{font-size:18px;font-weight:900;color:var(--blue);margin:1px 0 6px}
+.card-title-main p{font-size:15px;font-style:italic;color:var(--blue);margin:0;font-family:"Brush Script MT","Segoe Script",cursive;line-height:1.05}
+.stripe-divider{display:flex;flex-direction:column;gap:2px;margin:1mm 0 4mm}
+.stripe-blue{height:1.2mm;background:var(--blue)}.stripe-red{height:.8mm;background:var(--red)}
+.student-block{border:1.2px solid #9aaabd;border-radius:2mm;padding:3.2mm;display:grid;grid-template-columns:1fr 30mm;gap:7mm;align-items:center;margin-bottom:3mm;background:linear-gradient(90deg,#f9fbfe,#fff)}
+.student-info{display:flex;flex-direction:column;gap:9px;font-size:13px;font-weight:bold;color:#101820}
+.student-line{display:flex;align-items:baseline}.fill-line{flex:1;border-bottom:1px solid #000;margin-left:5px}
+.qr-container{border:1.5px solid var(--blue);border-radius:1.5mm;padding:2mm 1.5mm 1.5mm;text-align:center;display:flex;flex-direction:column;align-items:center}
+.qr-container canvas{width:22mm!important;height:22mm!important}
+.qr-label{background:var(--blue);color:#fff;font-size:7px;padding:2mm 1.5mm;border-radius:1.5mm;margin-top:1mm;font-weight:bold;text-transform:none;line-height:1.05}
+
+/* Área OMR */
+.omr-area{position:relative;border:0;padding:1mm 0 1mm;margin-top:1mm}
+.reg-marker{position:absolute;width:2.2mm;height:2.2mm;background:#000;z-index:3}
+.reg-tl{left:1mm;top:1mm}.reg-tr{right:1mm;top:1mm}.reg-bl{left:1mm;bottom:1mm}.reg-br{right:1mm;bottom:1mm}
+.questions-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:3mm}
+.q-column{border:1.1px solid #7290b2;border-radius:1.8mm;padding:2mm 1.6mm 1.5mm}
+.q-header{display:grid;grid-template-columns:24px repeat(5,1fr);text-align:center;font-weight:bold;font-size:9px;margin-bottom:3mm;padding-bottom:1mm}
+.q-header span:not(:first-child){width:4.7mm;height:4.7mm;border:1px solid #111;border-radius:50%;margin:auto;line-height:4.4mm}
+.q-row{display:grid;grid-template-columns:24px repeat(5,1fr);align-items:center;text-align:center;margin-bottom:1.55mm}
+.q-num{font-size:9.2px;font-weight:bold;text-align:left;padding-left:1px}
+.bubble-opt{width:4.2mm;height:4.2mm;border:1.1px solid #555;border-radius:50%;margin:auto;display:inline-block;background:#fff}
+.card-footer-strip{margin-top:1mm;display:flex;align-items:center;justify-content:center;gap:5mm;font-size:9px;font-weight:bold;color:var(--blue);white-space:nowrap}
+.footer-line-left,.footer-line-right{flex:1;height:2mm;background:linear-gradient(to right,var(--red) 78%,var(--blue) 78%)}
+.footer-line-right{background:linear-gradient(to left,var(--red) 78%,var(--blue) 78%)}
+
+.scan-area{display:grid;grid-template-columns:1.2fr .8fr;gap:18px}
+.videoBox{background:#111;border-radius:12px;overflow:hidden;min-height:360px;position:relative;display:flex;align-items:center;justify-content:center}
+.videoBox video{width:100%;display:block}
+.scan-overlay{position:absolute;border:2px dashed #00ff00;width:80%;height:82%;pointer-events:none}
+.scan-status{margin-top:10px;padding:10px;border-radius:8px;background:#eef7ff;font-size:13px}
+.omr-debug{max-width:100%;margin-top:12px;border:1px solid #ccd7e0;border-radius:8px;display:none}
+.scanResult{font-size:15px;margin-top:12px}.score{font-size:36px;font-weight:800;color:var(--blue-light);margin:10px 0}
+.answer-list{font-size:12px;line-height:1.5;max-height:180px;overflow:auto;background:#f7f9fb;padding:8px;border-radius:6px}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{border:1px solid #ccd7e0;padding:8px;text-align:left}th{background:#eef3f8}
+
+.hidden{display:none!important}
+
+@media(max-width:800px){
+ .grid,.scan-area{grid-template-columns:1fr}
+ .keygrid{grid-template-columns:repeat(3,1fr)}
+}
+@media print{
+ body{background:#fff;margin:0}
+ header,nav,main>.panel:not(.print-panel),.no-print{display:none!important}
+ main{max-width:none;padding:0}
+ .card-wrap{padding:0;background:#fff}
+ .answer-card{box-shadow:none;width:210mm;height:297mm;padding:6mm 8mm}
+}
+
+/* ===== V5.0 ===== */
+.v2-badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#e8f1ff;color:#0b65ad;font-size:11px;font-weight:800;margin-left:8px}
+.dashboard-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.stat{padding:16px;border:1px solid var(--line);border-radius:12px;background:#fff}.stat b{display:block;font-size:26px;color:var(--blue)}.stat span{font-size:12px;color:#667}
+.table-wrap{overflow:auto}.table-wrap table{width:100%;border-collapse:collapse}.table-wrap th,.table-wrap td{border-bottom:1px solid #e1e7ed;padding:9px;text-align:left;font-size:13px}.table-wrap th{background:#f5f8fb}
+.badge{padding:3px 7px;border-radius:999px;font-size:11px;font-weight:800}.ok{background:#e7f6ec;color:#146c2e}.warn{background:#fff3cd;color:#7a5b00}.bad{background:#fde8e8;color:#a51d1d}
+.review-box{border:1px solid #e4c56a;background:#fffaf0;border-radius:12px;padding:14px;margin-top:12px}.review-q{display:grid;grid-template-columns:70px 1fr auto;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid #eee}.review-q:last-child{border-bottom:0}
+.modal{position:fixed;inset:0;background:#0008;display:none;align-items:center;justify-content:center;z-index:100}.modal.show{display:flex}.modal-card{background:#fff;border-radius:16px;padding:20px;max-width:850px;width:94%;max-height:90vh;overflow:auto}.student-row{display:grid;grid-template-columns:1fr 140px 120px 40px;gap:8px;margin-bottom:8px}.small{font-size:12px}.danger{color:#a51d1d}
+@media(max-width:800px){.dashboard-grid{grid-template-columns:repeat(2,1fr)}.student-row{grid-template-columns:1fr}.review-q{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+<div><h1>Cartão-Resposta • Simulados</h1><small>Escola Estadual João Paulo II <span class="v2-badge">V5.0</span></small></div>
+</header>
+
+<nav>
+<button class="active" data-tab="config">1. Configurar</button>
+<button data-tab="students">2. Estudantes</button>
+<button data-tab="card">3. Cartão (Modelo)</button>
+<button data-tab="scan">4. Corrigir por OMR</button>
+<button data-tab="report">5. Relatório</button>
+</nav>
+
+<main>
+<section id="config" class="tab">
+<div class="panel">
+<h2>Sincronização entre celular e computador</h2>
+<div id="syncBox" class="sync-box offline">
+  <div><span id="syncDot" class="sync-dot warn"></span><b id="syncStatus">Não conectado à nuvem</b></div>
+  <div class="grid" style="margin-top:10px">
+    <div class="field"><label>Supabase Project URL</label><input id="supabaseUrl" placeholder="https://seu-projeto.supabase.co"></div>
+    <div class="field"><label>Supabase Anon Key</label><input id="supabaseKey" type="password" placeholder="eyJ... (anon/public key)"></div>
+    <div class="field"><label>E-mail da conta</label><input id="cloudEmail" type="email" placeholder="professor@escola.com"></div>
+    <div class="field"><label>Senha</label><input id="cloudPassword" type="password" placeholder="Sua senha"></div>
+  </div>
+  <div class="actions">
+    <button class="btn primary" id="cloudConnect">Conectar / Entrar</button>
+    <button class="btn" id="cloudSignUp">Criar conta</button>
+    <button class="btn" id="cloudSync">Sincronizar agora</button>
+    <button class="btn red" id="cloudLogout">Sair</button>
+  </div>
+  <div class="hint" style="margin-top:8px">Os simulados, estudantes e correções ficam vinculados à conta. O QR identifica somente o simulado.</div>
+</div>
+<h2>Configuração do simulado</h2>
+<div class="panel" style="background:#f7fbff;border-color:#cfe1f5;margin-bottom:14px;padding:14px">
+  <div class="grid">
+    <div class="field"><label>Simulado cadastrado</label><select id="assessmentSelect"><option value="">Novo simulado</option></select></div>
+    <div class="field"><label>Identificação</label><div class="status" style="margin:0">O QR Code é exclusivo do simulado. Todos os cartões desse simulado usam o mesmo QR, e a leitura carrega automaticamente o gabarito e as disciplinas daquele simulado.</div></div>
+  </div>
+  <div class="actions">
+    <button class="btn" id="newAssessmentBtn">+ Novo simulado</button>
+    <button class="btn red" id="deleteAssessmentBtn">Excluir simulado selecionado</button>
+  </div>
+</div>
+<div class="grid">
+<div class="field"><label>Nome do simulado</label><input id="simName" value="SIMULADO"></div>
+<div class="field"><label>Código do simulado</label><input id="simCode" value="SIM-2026-001"></div>
+<div class="field"><label>Número total de questões</label><input id="numQ" type="number" min="1" max="100" value="100"></div>
+<div class="field"><label>Quantidade de alternativas</label>
+<select id="numA">
+      <option value="2">2 — A, B</option>
+      <option value="3">3 — A, B, C</option>
+      <option value="4">4 — A, B, C, D</option>
+      <option value="5" selected>5 — A, B, C, D, E</option>
+    </select></div>
+</div>
+
+<h3>Disciplinas</h3>
+<div id="subjectsContainer"></div>
+<button class="btn" id="addSubjectBtn">+ Adicionar Disciplina</button>
+
+<h3>Gabarito</h3>
+<div id="keyGrid" class="keygrid"></div>
+<div class="actions">
+<button class="btn primary" id="saveConfig">Salvar simulado</button>
+<button class="btn" id="pasteKey">Preencher por texto</button>
+<button class="btn red" id="clearKey">Limpar gabarito</button>
+</div>
+<div id="configStatus" class="status">Preencha o gabarito e clique em Salvar.</div>
+</div>
+</section>
+
+<section id="students" class="tab hidden">
+<div class="panel">
+<h2>Cadastro de estudantes e turmas</h2>
+<p class="hint">Cadastre matrícula, nome e turma. O QR Code individual será usado para identificar o estudante durante a correção.</p>
+<div class="grid">
+<div class="field"><label>Turmas (uma por linha)</label><textarea id="classList" placeholder="8º A
+8º B
+9º A"></textarea></div>
+<div class="field"><label>Importar estudantes</label><textarea id="studentImport" placeholder="Cole CSV: matrícula;nome;turma
+001;Ana Silva;8º A"></textarea></div>
+</div>
+<div class="actions"><button class="btn primary" id="saveStudents">Salvar cadastro</button><button class="btn" id="importStudents">Importar lista</button><button class="btn red" id="clearStudents">Limpar cadastro</button></div>
+<div id="studentStatus" class="status">Nenhum estudante cadastrado.</div>
+<div id="studentTable" class="table-wrap" style="margin-top:14px"></div>
+</div></section>
+
+<section id="card" class="tab hidden">
+<div class="panel no-print">
+<h2>Pré-visualização do Cartão Resposta</h2>
+<p class="hint">As quatro marcas pretas nos cantos da área de questões são referências usadas pelo OMR. Não remova nem cubra essas marcas.</p>
+<div class="grid">
+<div class="field"><label>Estudante do cartão</label><select id="cardStudent"><option value="">Cartão genérico</option></select></div>
+<div class="field"><label>Orientação</label><div class="status">Para identificação automática, selecione um estudante antes de imprimir. O QR Code será vinculado à matrícula.</div></div>
+</div>
+<div class="actions">
+<button class="btn primary" onclick="window.print()">Imprimir Cartão</button>
+<button class="btn" id="regen">Atualizar Prévia</button>
+</div>
+</div>
+<div class="card-wrap"><div id="answerCard" class="answer-card"></div></div>
+</section>
+
+<section id="scan" class="tab hidden">
+<div class="panel">
+<h2>Correção automática por câmera (OMR)</h2>
+<p class="hint">Imprima o cartão em A4, marque as respostas preenchendo bem os círculos e mostre o cartão inteiro à câmera. A V5.0 valida iluminação/foco, identifica dupla marcação e abre conferência manual quando necessário.</p>
+<div class="scan-area">
+<div>
+<div class="videoBox">
+<video id="video" autoplay playsinline></video>
+<div class="scan-overlay"></div>
+</div>
+<div class="actions">
+<button class="btn primary" id="startCam">Abrir câmera</button>
+<button class="btn green" id="scanNow">Ler cartão agora</button>
+<button class="btn" id="stopCam">Parar</button>
+</div>
+<div id="scanStatus" class="scan-status">Aguardando câmera.</div><div class="hint" style="margin-top:8px">No celular, permita o acesso à câmera quando solicitado. Se o navegador bloquear, abra o sistema por HTTPS.</div>
+<canvas id="debugCanvas" class="omr-debug"></canvas>
+</div>
+
+<div>
+<div class="panel" style="margin:0">
+<h3>Resultado</h3>
+<div class="field"><label>Aluno em correção</label><select id="scanStudent"><option value="">Selecionar aluno</option></select></div>
+<div class="field"><label>Nome do aluno (se não estiver cadastrado)</label><input id="studentNameInput" placeholder="Digite o nome somente se necessário"></div>
+<div id="result"><p class="hint">Nenhuma leitura realizada.</p></div>
+<div id="reviewArea"></div>
+</div>
+</div>
+</div>
+</div>
+</section>
+
+<section id="report" class="tab hidden">
+<div class="panel">
+<h2>Relatórios e análise</h2>
+<div class="dashboard-grid" id="reportStats" style="margin-bottom:14px"></div>
+<div class="grid" style="margin-bottom:14px"><div class="field"><label>Filtrar por turma</label><select id="reportClass"><option value="">Todas</option></select></div><div class="field"><label>Filtrar por estudante</label><input id="reportStudent" placeholder="Nome ou matrícula"></div></div>
+<div class="actions" style="margin-bottom:14px">
+<button class="btn green" id="exportCSV">Exportar para CSV</button>
+<button class="btn primary" id="exportPDF">Exportar para PDF</button>
+</div>
+<div id="reportContent"><div id="reportTable"></div><div id="questionAnalysis" style="margin-top:20px"></div></div>
+</div>
+</section>
+</main>
+
+<div id="reviewModal" class="modal"><div class="modal-card"><h2>Conferência manual</h2><p class="hint">Revise apenas as questões que o OMR marcou como duvidosas ou com mais de uma alternativa.</p><div id="reviewList"></div><div class="actions"><button class="btn primary" id="confirmReview">Confirmar correção</button><button class="btn" id="cancelReview">Cancelar leitura</button></div></div></div>
+
+<script>
+// Lógica V5.0 de controle de interface e simulação OMR
+document.addEventListener("DOMContentLoaded", () => {
+  const tabs = document.querySelectorAll("nav button");
+  const tabContents = document.querySelectorAll(".tab");
+
+  tabs.forEach(tab => {
+    tab.addEventListener("click", () => {
+      tabs.forEach(t => t.classList.remove("active"));
+      tabContents.forEach(c => c.classList.add("hidden"));
+      tab.classList.add("active");
+      const target = tab.getAttribute("data-tab");
+      document.getElementById(target).classList.remove("hidden");
+    });
+  });
+
+  const numQInput = document.getElementById("numQ");
+  const numAInput = document.getElementById("numA");
+  const keyGrid = document.getElementById("keyGrid");
+
+  function generateKeyGrid() {
+    keyGrid.innerHTML = "";
+    const totalQ = parseInt(numQInput.value) || 10;
+    const totalA = parseInt(numAInput.value) || 5;
+    const letters = ["A","B","C","D","E"].slice(0, totalA);
+
+    for (let i = 1; i <= totalQ; i++) {
+      const item = document.createElement("div");
+      item.className = "keyitem";
+      let opts = `<option value="">-</option>`;
+      letters.forEach(l => opts += `<option value="${l}">${l}</option>`);
+      item.innerHTML = `<b>Q${i}:</b><select id="key_q_${i}">${opts}</select>`;
+      keyGrid.appendChild(item);
+    }
+  }
+
+  numQInput.addEventListener("change", generateKeyGrid);
+  numAInput.addEventListener("change", generateKeyGrid);
+  generateKeyGrid();
+});
+</script>
+</body>
+</html>
